@@ -1,13 +1,15 @@
 package com.josejordan.codescanner
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.util.SparseArray
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import android.widget.Toast
+import android.webkit.URLUtil
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -21,6 +23,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraSource: CameraSource
     private lateinit var detector: BarcodeDetector
     private lateinit var surfaceView: SurfaceView
+    private var lastQrCode: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,7 +40,11 @@ class MainActivity : AppCompatActivity() {
         val permission = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
 
         if (permission != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), PERMISSION_REQUEST_CAMERA)
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.CAMERA),
+                PERMISSION_REQUEST_CAMERA
+            )
         }
     }
 
@@ -58,12 +65,27 @@ class MainActivity : AppCompatActivity() {
                 // TODO: Implementar la liberación de recursos si es necesario
             }
 
+            /*            override fun receiveDetections(detections: Detector.Detections<Barcode>) {
+                            val barcodes: SparseArray<Barcode> = detections.detectedItems
+                            if (barcodes.size() > 0) {
+                                val barcode = barcodes.valueAt(0)
+                                val url = barcode.displayValue
+                                if (URLUtil.isValidUrl(url)) {
+                                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                    startActivity(browserIntent)
+                                }
+                            }
+                        }*/
             override fun receiveDetections(detections: Detector.Detections<Barcode>) {
                 val barcodes: SparseArray<Barcode> = detections.detectedItems
-                Log.i("MainActivity", "Número de códigos de barras detectados: ${barcodes.size()}")
                 if (barcodes.size() > 0) {
                     val barcode = barcodes.valueAt(0)
-                    Log.i("MainActivity", "Código QR detectado: ${barcode.displayValue}")
+                    val url = barcode.displayValue
+                    if (URLUtil.isValidUrl(url) && url != lastQrCode) {
+                        lastQrCode = url
+                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                        startActivity(browserIntent)
+                    }
                 }
             }
 
@@ -80,7 +102,11 @@ class MainActivity : AppCompatActivity() {
         surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
                 try {
-                    if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    if (ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.CAMERA
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
                         cameraSource.start(holder)
                     }
                 } catch (e: Exception) {
@@ -88,7 +114,12 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+            override fun surfaceChanged(
+                holder: SurfaceHolder,
+                format: Int,
+                width: Int,
+                height: Int
+            ) {
                 // No se requiere ninguna acción en este método para esta implementación
             }
 
