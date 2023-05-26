@@ -10,6 +10,7 @@ import android.util.SparseArray
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.webkit.URLUtil
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -24,12 +25,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var detector: BarcodeDetector
     private lateinit var surfaceView: SurfaceView
     private var lastQrCode: String? = null
+    private lateinit var graphicOverlay: GraphicOverlay
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         surfaceView = findViewById(R.id.surfaceView)
+        graphicOverlay = findViewById(R.id.graphicOverlay)
 
         setupPermissions()
         setupBarcodeDetector()
@@ -62,32 +65,58 @@ class MainActivity : AppCompatActivity() {
 
         detector.setProcessor(object : Detector.Processor<Barcode> {
             override fun release() {
-                // TODO: Implementar la liberación de recursos si es necesario
+                graphicOverlay.clear()
             }
 
-            /*            override fun receiveDetections(detections: Detector.Detections<Barcode>) {
-                            val barcodes: SparseArray<Barcode> = detections.detectedItems
-                            if (barcodes.size() > 0) {
-                                val barcode = barcodes.valueAt(0)
-                                val url = barcode.displayValue
-                                if (URLUtil.isValidUrl(url)) {
-                                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                                    startActivity(browserIntent)
-                                }
-                            }
-                        }*/
             override fun receiveDetections(detections: Detector.Detections<Barcode>) {
                 val barcodes: SparseArray<Barcode> = detections.detectedItems
                 if (barcodes.size() > 0) {
+                    graphicOverlay.clear()
                     val barcode = barcodes.valueAt(0)
-                    val url = barcode.displayValue
-                    if (URLUtil.isValidUrl(url) && url != lastQrCode) {
-                        lastQrCode = url
-                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                        startActivity(browserIntent)
+                    val barcodeGraphic = BarcodeGraphic(graphicOverlay, barcode)
+                    graphicOverlay.add(barcodeGraphic)
+                    when (barcode.valueFormat) {
+                        Barcode.URL -> {
+                            val url = barcode.url.url
+                            if (URLUtil.isValidUrl(url) && url != lastQrCode) {
+                                lastQrCode = url
+                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                startActivity(browserIntent)
+                            }
+                        }
+                        Barcode.TEXT -> {
+                            val text = barcode.displayValue
+                            if (text != lastQrCode) {
+                                lastQrCode = text
+                                runOnUiThread {
+                                    Toast.makeText(applicationContext, "Texto detectado: $text", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                        Barcode.CONTACT_INFO -> {
+                            val contactInfo = barcode.contactInfo
+                            val contactDisplay = """
+                    Nombre: ${contactInfo.title} ${contactInfo.name.first} ${contactInfo.name.last}
+                    Teléfono: ${contactInfo.phones.firstOrNull()?.number}
+                    Email: ${contactInfo.emails.firstOrNull()?.address}
+                """.trimIndent()
+                            if (contactDisplay != lastQrCode) {
+                                lastQrCode = contactDisplay
+                                runOnUiThread {
+                                    Toast.makeText(applicationContext, "Contacto detectado: $contactDisplay", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                        // Puedes añadir más casos aquí para otros tipos de datos
+                        else -> {
+                            // Haz algo para los códigos QR que no se ajustan a los casos anteriores
+                        }
                     }
                 }
             }
+
+
+
 
         })
     }
@@ -108,6 +137,7 @@ class MainActivity : AppCompatActivity() {
                         ) == PackageManager.PERMISSION_GRANTED
                     ) {
                         cameraSource.start(holder)
+                        graphicOverlay.setCameraInfo(cameraSource.previewSize.width, cameraSource.previewSize.height)
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -127,7 +157,10 @@ class MainActivity : AppCompatActivity() {
                 cameraSource.stop()
             }
         })
+
     }
+
+
 
     companion object {
         const val PERMISSION_REQUEST_CAMERA = 1001
