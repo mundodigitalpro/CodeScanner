@@ -39,6 +39,18 @@ class MainActivity : AppCompatActivity() {
         setupCameraSource()
     }
 
+/*    private fun setupPermissions() {
+        val permission = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.CAMERA),
+                PERMISSION_REQUEST_CAMERA
+            )
+        }
+    }*/
+
     private fun setupPermissions() {
         val permission = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
 
@@ -48,6 +60,28 @@ class MainActivity : AppCompatActivity() {
                 arrayOf(Manifest.permission.CAMERA),
                 PERMISSION_REQUEST_CAMERA
             )
+        } else {
+            setupBarcodeDetector()
+            setupCameraSource()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            PERMISSION_REQUEST_CAMERA -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    setupBarcodeDetector()
+                    setupCameraSource()
+                } else {
+                    Toast.makeText(this, "Permiso de cámara denegado", Toast.LENGTH_SHORT).show()
+                }
+                return
+            }
         }
     }
 
